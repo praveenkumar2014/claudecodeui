@@ -1,0 +1,38 @@
+# Topology template only: validate actual startup commands/ports before use.
+services:
+  gs-workspace:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env.gs
+    depends_on:
+      gs-agent-brain:
+        condition: service_healthy
+    networks:
+      - public
+      - agent-internal
+  gs-agent-brain:
+    build:
+      context: ../../nanobot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8765"
+      - "18790"
+    volumes:
+      - nanobot-data:/home/nanobot/.nanobot
+    networks:
+      - agent-internal
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:18790/health', timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  public: {}
+  agent-internal:
+    internal: true
+volumes:
+  nanobot-data: {}
