@@ -1,4 +1,7 @@
-# Topology template only: validate actual startup commands/ports before use.
+# Two-service topology template.
+# IMPORTANT: not production-ready until NanoBot gateway command, health endpoint,
+# auth contract and build context are verified against the pinned NanoBot checkout.
+# This Compose file intentionally does not publish either service directly.
 services:
   gs-workspace:
     build:
@@ -9,30 +12,31 @@ services:
       - ../.env.gs
     depends_on:
       gs-agent-brain:
-        condition: service_healthy
+        condition: service_started
     networks:
       - public
       - agent-internal
+    # Attach the public reverse proxy to "public"; configure its labels/ports
+    # only after the CloudCLI server's actual listen port and auth mode are verified.
+
   gs-agent-brain:
+    # TODO: point this build context at a pinned, reviewed NanoBot checkout.
+    # NanoBot upstream is intentionally maintained as a separate codebase.
     build:
       context: ../../nanobot
       dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "8765"
-      - "18790"
     volumes:
       - nanobot-data:/home/nanobot/.nanobot
     networks:
       - agent-internal
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:18790/health', timeout=3)\""]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    # Do not expose ports to the host. Configure authenticated service discovery
+    # only after verifying the actual NanoBot gateway bind port and protocol.
+
 networks:
   public: {}
   agent-internal:
     internal: true
+
 volumes:
   nanobot-data: {}
